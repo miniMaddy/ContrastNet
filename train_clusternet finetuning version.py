@@ -21,7 +21,7 @@ parser.add_argument('--log_dir', default='log', help='Log dir [default: log]')
 parser.add_argument('--num_point', type=int, default=1024, help='Point Number [256/512/1024/2048] [default: 1024]')
 parser.add_argument('--max_epoch', type=int, default=201, help='Epoch to run [default: 250]')
 parser.add_argument('--batch_size', type=int, default=36, help='Batch Size during training [default: 32]')
-parser.add_argument('--learning_rate', type=float, default=0.001, help='Initial learning rate [default: 0.001]')
+parser.add_argument('--learning_rate', type=float, default=0.01, help='Initial learning rate [default: 0.001]')
 parser.add_argument('--momentum', type=float, default=0.9, help='Initial learning rate [default: 0.9]')
 parser.add_argument('--optimizer', default='adam', help='adam or momentum [default: adam]')
 parser.add_argument('--decay_step', type=int, default=200000, help='Decay step for lr decay [default: 200000]')
@@ -52,7 +52,7 @@ LOG_FOUT = open(os.path.join(LOG_DIR, 'log_train.txt'), 'w')
 LOG_FOUT.write(str(FLAGS)+'\n')
 
 MAX_NUM_POINT = 2048
-NUM_CLASSES = 40
+NUM_CLASSES = 6
 
 BN_INIT_DECAY = 0.5
 BN_DECAY_DECAY_RATE = 0.5
@@ -63,9 +63,9 @@ HOSTNAME = socket.gethostname()
 
 # ModelNet40 official train/test split
 TRAIN_FILES = provider.getDataFiles( \
-    os.path.join(BASE_DIR, 'data/modelnet40_ply_hdf5_2048_cut/train_files.txt'))
+    os.path.join(BASE_DIR, 'data/s3dis_hdf5_2048_cut/train_files.txt'))
 TEST_FILES = provider.getDataFiles(\
-    os.path.join(BASE_DIR, 'data/modelnet40_ply_hdf5_2048_cut/test_files.txt'))
+    os.path.join(BASE_DIR, 'data/s3dis_hdf5_2048_cut/test_files.txt'))
 
 # Get labels
 LABELS = []
@@ -86,7 +86,7 @@ def get_learning_rate(batch):
                         DECAY_STEP,          # Decay step.
                         DECAY_RATE,          # Decay rate.
                         staircase=True)
-    learning_rate = tf.maximum(learning_rate, 0.00001) # CLIP THE LEARNING RATE!
+    learning_rate = tf.maximum(learning_rate, 0.0001) # CLIP THE LEARNING RATE!
     return learning_rate
 
 def get_bn_decay(batch):
@@ -100,84 +100,86 @@ def get_bn_decay(batch):
     return bn_decay
 
 def train():
-    with tf.Graph().as_default():
-        with tf.device('/gpu:'+str(GPU_INDEX)):
-            pointclouds_pl, labels_pl = MODEL.placeholder_inputs(BATCH_SIZE, NUM_POINT)
-            is_training_pl = tf.placeholder(tf.bool, shape=())
-            print(is_training_pl)
+    with tf.device('/gpu:'+str(GPU_INDEX)):
+        pointclouds_pl, labels_pl = MODEL.placeholder_inputs(BATCH_SIZE, NUM_POINT)
+        is_training_pl = tf.placeholder(tf.bool, shape=())
+        print(is_training_pl)
 
-            # Note the global_step=batch parameter to minimize.
-            # That tells the optimizer to helpfully increment the 'batch' parameter for you every time it trains.
-            batch = tf.Variable(0)
-            bn_decay = get_bn_decay(batch)
-            tf.summary.scalar('bn_decay', bn_decay)
+        # Note the global_step=batch parameter to minimize.
+        # That tells the optimizer to helpfully increment the 'batch' parameter for you every time it trains.
+        batch = tf.Variable(0)
+        bn_decay = get_bn_decay(batch)
+        tf.summary.scalar('bn_decay', bn_decay)
 
-            # Get model and loss
-            pred, feat, end_points = MODEL.get_model(pointclouds_pl, is_training_pl, bn_decay=bn_decay)
-            loss = MODEL.get_loss(pred, labels_pl, end_points)
-            tf.summary.scalar('loss', loss)
+        # Get model and loss
+        pred, feat, end_points = MODEL.get_model(pointclouds_pl, is_training_pl, bn_decay=bn_decay)
+        loss = MODEL.get_loss(pred, labels_pl, end_points)
+        tf.summary.scalar('loss', loss)
 
-            correct = tf.equal(tf.argmax(pred, 1), tf.to_int64(labels_pl))
-            accuracy = tf.reduce_sum(tf.cast(correct, tf.float32)) / float(BATCH_SIZE)
-            tf.summary.scalar('accuracy', accuracy)
+        correct = tf.equal(tf.argmax(pred, 1), tf.to_int64(labels_pl))
+        accuracy = tf.reduce_sum(tf.cast(correct, tf.float32)) / float(BATCH_SIZE)
+        tf.summary.scalar('accuracy', accuracy)
 
-            # Get training operator
-            learning_rate = get_learning_rate(batch)
-            tf.summary.scalar('learning_rate', learning_rate)
-            if OPTIMIZER == 'momentum':
-                optimizer = tf.train.MomentumOptimizer(learning_rate, momentum=MOMENTUM)
-            elif OPTIMIZER == 'adam':
-                optimizer = tf.train.AdamOptimizer(learning_rate)
-            train_op = optimizer.minimize(loss, global_step=batch)
+        # Get training operator
+        learning_rate = get_learning_rate(batch)
+        tf.summary.scalar('learning_rate', learning_rate)
+        if OPTIMIZER == 'momentum':
+            optimizer = tf.train.MomentumOptimizer(learning_rate, momentum=MOMENTUM)
+        elif OPTIMIZER == 'adam':
+            optimizer = tf.train.AdamOptimizer(learning_rate)
+        train_op = optimizer.minimize(loss, global_step=batch)
 
-            # Add ops to save and restore all the variables.
-            saver = tf.train.Saver(max_to_keep = 10)
+        # Add ops to save and restore all the variables.
+        saver = tf.train.Saver(max_to_keep = 10)
 
-        # Create a session
-        config = tf.ConfigProto()
-        config.gpu_options.allow_growth = True
-        config.allow_soft_placement = True
-        config.log_device_placement = False
-        sess = tf.Session(config=config)
+    # Create a session
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    config.allow_soft_placement = True
+    config.log_device_placement = False
+    sess = tf.Session(config=config)
 
-        # saver.restore(sess, MODEL_PATH)
-        # log_string("Model restored.")
+    saver.restore(sess, MODEL_PATH)
+    log_string("Model restored.")
 
-        # Add summary writers
-        #merged = tf.merge_all_summaries()
-        merged = tf.summary.merge_all()
-        train_writer = tf.summary.FileWriter(os.path.join(LOG_DIR, 'train'),
+    # Add summary writers
+    #merged = tf.merge_all_summaries()
+    merged = tf.summary.merge_all()
+    train_writer = tf.summary.FileWriter(os.path.join(LOG_DIR, 'train'),
                                   sess.graph)
-        test_writer = tf.summary.FileWriter(os.path.join(LOG_DIR, 'test'))
+    test_writer = tf.summary.FileWriter(os.path.join(LOG_DIR, 'test'))
 
-        # Init variables
-        init = tf.global_variables_initializer()
-        sess.run(init, {is_training_pl: True})
+    # Init variables
+    #init = tf.global_variables_initializer()
+    #sess.run(init, {is_training_pl: True})
 
-        ops = {'pointclouds_pl': pointclouds_pl,
-               'labels_pl': labels_pl,
-               'feat': feat,
-               'is_training_pl': is_training_pl,
-               'pred': pred,
-               'loss': loss,
-               'train_op': train_op,
-               'merged': merged,
-               'step': batch}
+    ops = {'pointclouds_pl': pointclouds_pl,
+           'labels_pl': labels_pl,
+           'feat': feat,
+           'is_training_pl': is_training_pl,
+           'pred': pred,
+           'loss': loss,
+           'train_op': train_op,
+           'merged': merged,
+           'step': batch}
 
-        for epoch in range(MAX_EPOCH):
-            log_string('**** EPOCH %03d ****' % (epoch))
-            sys.stdout.flush()
+    for epoch in range(71, MAX_EPOCH):
+        log_string('**** EPOCH %03d ****' % (epoch))
+        sys.stdout.flush()
 
-            train_one_epoch(sess, ops, train_writer)
+        train_one_epoch(sess, ops, train_writer)
 
-            # Save the variables to disk.
+        # Save the variables to disk.
 
-            if epoch % 20 == 0 and epoch >= 80:
-                save_path = saver.save(sess, os.path.join(LOG_DIR, 'epoch_' + str(epoch)+'.ckpt'))
-                log_string("Model saved in file: %s" % save_path)
-            elif epoch % 10 == 0:
-                save_path = saver.save(sess, os.path.join(LOG_DIR, 'model.ckpt'))
-                log_string("Model saved in file: %s" % save_path)
+        if epoch % 20 == 0 and epoch >= 80:
+            save_path = saver.save(sess, os.path.join(LOG_DIR, 'epoch_' + str(epoch)+'.ckpt'))
+            log_string("Model saved in file: %s" % save_path)
+        elif epoch % 5 == 0:
+            save_path = saver.save(sess, os.path.join(LOG_DIR, 'epoch_' + str(epoch)+'.ckpt'))
+            log_string("Model saved in file: %s" % save_path)
+        elif epoch % 10 == 0:
+            save_path = saver.save(sess, os.path.join(LOG_DIR, 'model.ckpt'))
+            log_string("Model saved in file: %s" % save_path)
 
 
 def train_one_epoch(sess, ops, train_writer):
