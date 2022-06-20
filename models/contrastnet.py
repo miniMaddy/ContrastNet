@@ -1,4 +1,5 @@
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 import numpy as np
 import math
 import sys
@@ -159,8 +160,8 @@ if __name__=='__main__':
       sess.run(tf.global_variables_initializer())
       feed_dict = {input_pl: input_feed, label_pl: label_feed}
       res1, res2 = sess.run([pos, ftr], feed_dict=feed_dict)
-      print res1.shape
-      print res1
+      print(res1.shape)
+      print(res1)
 
-      print res2.shape
-      print res2
+      print(res2.shape)
+      print(res2)

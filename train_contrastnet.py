@@ -63,9 +63,9 @@ HOSTNAME = socket.gethostname()
 
 # ModelNet40 official train/test split
 TRAIN_FILES = provider.getDataFiles( \
-    os.path.join(BASE_DIR, 'data/modelnet40_ply_hdf5_2048_cut/train_files.txt'))
+    os.path.join(BASE_DIR, 'data/modelnet40_ply_hdf5_2048_cut/train_files.txt')) #put the correct locations
 TEST_FILES = provider.getDataFiles(\
-    os.path.join(BASE_DIR, 'data/modelnet40_ply_hdf5_2048_cut/test_files.txt'))
+    os.path.join(BASE_DIR, 'data/modelnet40_ply_hdf5_2048_cut/test_files.txt')) 
 
 def log_string(out_str):
     LOG_FOUT.write(out_str+'\n')
@@ -163,8 +163,8 @@ def train():
 
             train_one_epoch(sess, ops, train_writer)
 
-            if epoch % 40 == 0 and epoch >= 120:
-                save_path = saver.save(sess, os.path.join(LOG_DIR, 'epoch_' + str(epoch)+'.ckpt'))
+            if epoch % 40 == 0 and epoch >= 120: # change this so that the models save after some 10 epochs
+                save_path = saver.save(sess, os.path.join(LOG_DIR, 'epoch_' + str(epoch)+'.ckpt')) # change the name of 'epoch_' so that you have an idea of how many points, cut is it
                 log_string("Model saved in file: %s" % save_path)
             elif epoch % 10 == 0:
                 save_path = saver.save(sess, os.path.join(LOG_DIR, 'model.ckpt'))
