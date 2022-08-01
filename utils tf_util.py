@@ -22,7 +22,7 @@ def _variable_on_cpu(name, shape, initializer, use_fp16=False, trainable=True):
   """
   with tf.device('/cpu:0'):
     dtype = tf.float16 if use_fp16 else tf.float32
-    var = tf.get_variable(name, shape, initializer=initializer, dtype=dtype, trainable=trainable)
+    var = tf.compat.v1.get_variable(name, shape, initializer=initializer, dtype=dtype, trainable=trainable, use_resource=False)
   return var
 
 def _variable_with_weight_decay(name, shape, stddev, wd, use_xavier=True):
@@ -43,13 +43,13 @@ def _variable_with_weight_decay(name, shape, stddev, wd, use_xavier=True):
     Variable Tensor
   """
   if use_xavier:
-    initializer = tf.contrib.layers.xavier_initializer()
+    initializer = tf.compat.v1.keras.initializers.VarianceScaling(scale=1.0, mode="fan_avg", distribution="uniform")
   else:
-    initializer = tf.truncated_normal_initializer(stddev=stddev)
+    initializer = tf.compat.v1.truncated_normal_initializer(stddev=stddev)
   var = _variable_on_cpu(name, shape, initializer)
   if wd is not None:
     weight_decay = tf.multiply(tf.nn.l2_loss(var), wd, name='weight_loss')
-    tf.add_to_collection('losses', weight_decay)
+    tf.compat.v1.add_to_collection('losses', weight_decay)
   return var
 
 
@@ -87,7 +87,7 @@ def conv1d(inputs,
   Returns:
     Variable tensor
   """
-  with tf.variable_scope(scope) as sc:
+  with tf.compat.v1.variable_scope(scope) as sc:
     num_in_channels = inputs.get_shape()[-1].value
     kernel_shape = [kernel_size,
                     num_in_channels, num_output_channels]
@@ -96,11 +96,11 @@ def conv1d(inputs,
                                          use_xavier=use_xavier,
                                          stddev=stddev,
                                          wd=weight_decay)
-    outputs = tf.nn.conv1d(inputs, kernel,
+    outputs = tf.nn.conv1d(input=inputs, filters=kernel,
                            stride=stride,
                            padding=padding)
     biases = _variable_on_cpu('biases', [num_output_channels],
-                              tf.constant_initializer(0.0))
+                              tf.compat.v1.constant_initializer(0.0))
     outputs = tf.nn.bias_add(outputs, biases)
 
     if bn:
@@ -148,7 +148,7 @@ def conv2d(inputs,
   Returns:
     Variable tensor
   """
-  with tf.variable_scope(scope) as sc:
+  with tf.compat.v1.variable_scope(scope) as sc:
       kernel_h, kernel_w = kernel_size
       num_in_channels = inputs.get_shape()[-1].value
       kernel_shape = [kernel_h, kernel_w,
@@ -159,11 +159,11 @@ def conv2d(inputs,
                                            stddev=stddev,
                                            wd=weight_decay)
       stride_h, stride_w = stride
-      outputs = tf.nn.conv2d(inputs, kernel,
-                             [1, stride_h, stride_w, 1],
+      outputs = tf.nn.conv2d(input=inputs, filters=kernel,
+                             strides=[1, stride_h, stride_w, 1],
                              padding=padding)
       biases = _variable_on_cpu('biases', [num_output_channels],
-                                tf.constant_initializer(0.0))
+                                tf.compat.v1.constant_initializer(0.0))
       outputs = tf.nn.bias_add(outputs, biases)
 
       if bn:
@@ -211,7 +211,7 @@ def conv2d_transpose(inputs,
 
   Note: conv2d(conv2d_transpose(a, num_out, ksize, stride), a.shape[-1], ksize, stride) == a
   """
-  with tf.variable_scope(scope) as sc:
+  with tf.compat.v1.variable_scope(scope) as sc:
       kernel_h, kernel_w = kernel_size
       num_in_channels = inputs.get_shape()[-1].value
       kernel_shape = [kernel_h, kernel_w,
@@ -243,7 +243,7 @@ def conv2d_transpose(inputs,
                              [1, stride_h, stride_w, 1],
                              padding=padding)
       biases = _variable_on_cpu('biases', [num_output_channels],
-                                tf.constant_initializer(0.0))
+                                tf.compat.v1.constant_initializer(0.0))
       outputs = tf.nn.bias_add(outputs, biases)
 
       if bn:
@@ -290,7 +290,7 @@ def conv3d(inputs,
   Returns:
     Variable tensor
   """
-  with tf.variable_scope(scope) as sc:
+  with tf.compat.v1.variable_scope(scope) as sc:
     kernel_d, kernel_h, kernel_w = kernel_size
     num_in_channels = inputs.get_shape()[-1].value
     kernel_shape = [kernel_d, kernel_h, kernel_w,
@@ -305,7 +305,7 @@ def conv3d(inputs,
                            [1, stride_d, stride_h, stride_w, 1],
                            padding=padding)
     biases = _variable_on_cpu('biases', [num_output_channels],
-                              tf.constant_initializer(0.0))
+                              tf.compat.v1.constant_initializer(0.0))
     outputs = tf.nn.bias_add(outputs, biases)
     
     if bn:
@@ -336,7 +336,7 @@ def fully_connected(inputs,
   Returns:
     Variable tensor of size B x num_outputs.
   """
-  with tf.variable_scope(scope) as sc:
+  with tf.compat.v1.variable_scope(scope) as sc:
     num_input_units = inputs.get_shape()[-1].value
     weights = _variable_with_weight_decay('weights',
                                           shape=[num_input_units, num_outputs],
@@ -345,7 +345,7 @@ def fully_connected(inputs,
                                           wd=weight_decay)
     outputs = tf.matmul(inputs, weights)
     biases = _variable_on_cpu('biases', [num_outputs],
-                             tf.constant_initializer(0.0))
+                             tf.compat.v1.constant_initializer(0.0))
     outputs = tf.nn.bias_add(outputs, biases)
      
     if bn:
@@ -371,10 +371,10 @@ def max_pool2d(inputs,
   Returns:
     Variable tensor
   """
-  with tf.variable_scope(scope) as sc:
+  with tf.compat.v1.variable_scope(scope) as sc:
     kernel_h, kernel_w = kernel_size
     stride_h, stride_w = stride
-    outputs = tf.nn.max_pool(inputs,
+    outputs = tf.nn.max_pool2d(input=inputs,
                              ksize=[1, kernel_h, kernel_w, 1],
                              strides=[1, stride_h, stride_w, 1],
                              padding=padding,
@@ -396,10 +396,10 @@ def avg_pool2d(inputs,
   Returns:
     Variable tensor
   """
-  with tf.variable_scope(scope) as sc:
+  with tf.compat.v1.variable_scope(scope) as sc:
     kernel_h, kernel_w = kernel_size
     stride_h, stride_w = stride
-    outputs = tf.nn.avg_pool(inputs,
+    outputs = tf.nn.avg_pool2d(input=inputs,
                              ksize=[1, kernel_h, kernel_w, 1],
                              strides=[1, stride_h, stride_w, 1],
                              padding=padding,
@@ -422,7 +422,7 @@ def max_pool3d(inputs,
   Returns:
     Variable tensor
   """
-  with tf.variable_scope(scope) as sc:
+  with tf.compat.v1.variable_scope(scope) as sc:
     kernel_d, kernel_h, kernel_w = kernel_size
     stride_d, stride_h, stride_w = stride
     outputs = tf.nn.max_pool3d(inputs,
@@ -447,7 +447,7 @@ def avg_pool3d(inputs,
   Returns:
     Variable tensor
   """
-  with tf.variable_scope(scope) as sc:
+  with tf.compat.v1.variable_scope(scope) as sc:
     kernel_d, kernel_h, kernel_w = kernel_size
     stride_d, stride_h, stride_w = stride
     outputs = tf.nn.avg_pool3d(inputs,
@@ -474,19 +474,19 @@ def batch_norm_template(inputs, is_training, scope, moments_dims, bn_decay):
   Return:
       normed:        batch-normalized maps
   """
-  with tf.variable_scope(scope) as sc:
+  with tf.compat.v1.variable_scope(scope) as sc:
     num_channels = inputs.get_shape()[-1].value
     beta = tf.Variable(tf.constant(0.0, shape=[num_channels]),
                        name='beta', trainable=True)
     gamma = tf.Variable(tf.constant(1.0, shape=[num_channels]),
                         name='gamma', trainable=True)
-    batch_mean, batch_var = tf.nn.moments(inputs, moments_dims, name='moments')
+    batch_mean, batch_var = tf.nn.moments(x=inputs, axes=moments_dims, name='moments')
     decay = bn_decay if bn_decay is not None else 0.9
     ema = tf.train.ExponentialMovingAverage(decay=decay)
     # Operator that maintains moving averages of variables.
-    ema_apply_op = tf.cond(is_training,
-                           lambda: ema.apply([batch_mean, batch_var]),
-                           lambda: tf.no_op())
+    ema_apply_op = tf.cond(pred=is_training,
+                           true_fn=lambda: ema.apply([batch_mean, batch_var]),
+                           false_fn=lambda: tf.no_op())
     
     # Update moving average and return current batch's avg and var.
     def mean_var_with_update():
@@ -494,9 +494,9 @@ def batch_norm_template(inputs, is_training, scope, moments_dims, bn_decay):
         return tf.identity(batch_mean), tf.identity(batch_var)
     
     # ema.average returns the Variable holding the average of var.
-    mean, var = tf.cond(is_training,
-                        mean_var_with_update,
-                        lambda: (ema.average(batch_mean), ema.average(batch_var)))
+    mean, var = tf.cond(pred=is_training,
+                        true_fn=mean_var_with_update,
+                        false_fn=lambda: (ema.average(batch_mean), ema.average(batch_var)))
     normed = tf.nn.batch_normalization(inputs, mean, var, beta, gamma, 1e-3)
   return normed
 
@@ -512,28 +512,28 @@ def batch_norm_dist_template(inputs, is_training, scope, moments_dims, bn_decay)
   Return:
       normed:        batch-normalized maps
   """
-  with tf.variable_scope(scope) as sc:
+  with tf.compat.v1.variable_scope(scope) as sc:
     num_channels = inputs.get_shape()[-1].value
-    beta = _variable_on_cpu('beta', [num_channels], initializer=tf.zeros_initializer())
-    gamma = _variable_on_cpu('gamma', [num_channels], initializer=tf.ones_initializer())
+    beta = _variable_on_cpu('beta', [num_channels], initializer=tf.compat.v1.zeros_initializer())
+    gamma = _variable_on_cpu('gamma', [num_channels], initializer=tf.compat.v1.ones_initializer())
 
-    pop_mean = _variable_on_cpu('pop_mean', [num_channels], initializer=tf.zeros_initializer(), trainable=False)
-    pop_var = _variable_on_cpu('pop_var', [num_channels], initializer=tf.ones_initializer(), trainable=False)
+    pop_mean = _variable_on_cpu('pop_mean', [num_channels], initializer=tf.compat.v1.zeros_initializer(), trainable=False)
+    pop_var = _variable_on_cpu('pop_var', [num_channels], initializer=tf.compat.v1.ones_initializer(), trainable=False)
 
     def train_bn_op():
-      batch_mean, batch_var = tf.nn.moments(inputs, moments_dims, name='moments')
+      batch_mean, batch_var = tf.nn.moments(x=inputs, axes=moments_dims, name='moments')
       decay = bn_decay if bn_decay is not None else 0.9
-      train_mean = tf.assign(pop_mean, pop_mean * decay + batch_mean * (1 - decay)) 
-      train_var = tf.assign(pop_var, pop_var * decay + batch_var * (1 - decay))
+      train_mean = tf.compat.v1.assign(pop_mean, pop_mean * decay + batch_mean * (1 - decay)) 
+      train_var = tf.compat.v1.assign(pop_var, pop_var * decay + batch_var * (1 - decay))
       with tf.control_dependencies([train_mean, train_var]):
         return tf.nn.batch_normalization(inputs, batch_mean, batch_var, beta, gamma, 1e-3)
 
     def test_bn_op():
       return tf.nn.batch_normalization(inputs, pop_mean, pop_var, beta, gamma, 1e-3)
 
-    normed = tf.cond(is_training,
-                     train_bn_op,
-                     test_bn_op)
+    normed = tf.cond(pred=is_training,
+                     true_fn=train_bn_op,
+                     false_fn=test_bn_op)
     return normed
 
 
@@ -630,10 +630,10 @@ def dropout(inputs,
   Returns:
     tensor variable
   """
-  with tf.variable_scope(scope) as sc:
-    outputs = tf.cond(is_training,
-                      lambda: tf.nn.dropout(inputs, keep_prob, noise_shape),
-                      lambda: inputs)
+  with tf.compat.v1.variable_scope(scope) as sc:
+    outputs = tf.cond(pred=is_training,
+                      true_fn=lambda: tf.nn.dropout(inputs, 1 - (keep_prob), noise_shape),
+                      false_fn=lambda: inputs)
     return outputs
 
 
@@ -651,11 +651,11 @@ def pairwise_distance(point_cloud):
   if og_batch_size == 1:
     point_cloud = tf.expand_dims(point_cloud, 0)
     
-  point_cloud_transpose = tf.transpose(point_cloud, perm=[0, 2, 1])
+  point_cloud_transpose = tf.transpose(a=point_cloud, perm=[0, 2, 1])
   point_cloud_inner = tf.matmul(point_cloud, point_cloud_transpose)
   point_cloud_inner = -2*point_cloud_inner
-  point_cloud_square = tf.reduce_sum(tf.square(point_cloud), axis=-1, keep_dims=True)
-  point_cloud_square_tranpose = tf.transpose(point_cloud_square, perm=[0, 2, 1])
+  point_cloud_square = tf.reduce_sum(input_tensor=tf.square(point_cloud), axis=-1, keepdims=True)
+  point_cloud_square_tranpose = tf.transpose(a=point_cloud_square, perm=[0, 2, 1])
   return point_cloud_square + point_cloud_inner + point_cloud_square_tranpose
 
 

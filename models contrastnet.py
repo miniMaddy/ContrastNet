@@ -126,9 +126,8 @@ def get_constra_loss(feat1, feat2, label, end_points):
   """ feat1: B*256,
       feat2: B*256,
       label: B, """
-  feat1 = tf.math.l2_normalize(feat1, axis=0, epsilon=1e-12, name=None, dim=None)
-  feat2 = tf.math.l2_normalize(feat2, axis=0, epsilon=1e-12, name=None, dim=None)
-  contrastive_loss = tf.contrib.losses.metric_learning.contrastive_loss(label, feat1, feat2, margin=1.0)
+  y_pred = tf.linalg.norm(feat1 - feat2, axis=1)
+  contrastive_loss = tf.contrib.losses.metric_learning.contrastive_loss(label, y_pred, margin=1.0)
   return contrastive_loss
 
 def get_constra_cross_loss(pred, feat1, feat2, label, end_points):
