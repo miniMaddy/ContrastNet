@@ -1,4 +1,5 @@
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 import numpy as np
 import math
 import sys
@@ -12,8 +13,8 @@ from transform_nets import input_transform_net
 
 
 def placeholder_inputs(batch_size, num_point):
-  pointclouds_pl = tf.compat.v1.placeholder(tf.float32, shape=(batch_size, num_point, 3))
-  labels_pl = tf.compat.v1.placeholder(tf.int32, shape=(batch_size))
+  pointclouds_pl = tf.placeholder(tf.float32, shape=(batch_size, num_point, 3))
+  labels_pl = tf.placeholder(tf.int32, shape=(batch_size))
   return pointclouds_pl, labels_pl
 
 
@@ -28,7 +29,7 @@ def get_model(point_cloud, is_training, bn_decay=None):
   nn_idx = tf_util.knn(adj_matrix, k=k)
   edge_feature = tf_util.get_edge_feature(point_cloud, nn_idx=nn_idx, k=k)
 
-  with tf.compat.v1.variable_scope('transform_net1') as sc:
+  with tf.variable_scope('transform_net1') as sc:
     transform = input_transform_net(edge_feature, is_training, '3', bn_decay, K=3)
 
   point_cloud_transformed = tf.matmul(point_cloud, transform)
@@ -109,7 +110,7 @@ def get_loss(pred, label, end_points):
   """ pred: B*NUM_CLASSES,
       label: B, """
   labels = tf.one_hot(indices=label, depth=300)
-  loss = tf.compat.v1.losses.softmax_cross_entropy(onehot_labels=labels, logits=pred, label_smoothing=0.2)
+  loss = tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=pred, label_smoothing=0.2)
   classify_loss = tf.reduce_mean(input_tensor=loss)
   return classify_loss
 
@@ -130,8 +131,8 @@ if __name__=='__main__':
     pos, ftr = get_model(input_pl, tf.constant(True))
     # loss = get_loss(logits, label_pl, None)
 
-    with tf.compat.v1.Session() as sess:
-      sess.run(tf.compat.v1.global_variables_initializer())
+    with tf.Session() as sess:
+      sess.run(tf.global_variables_initializer())
       feed_dict = {input_pl: input_feed, label_pl: label_feed}
       res1, res2 = sess.run([pos, ftr], feed_dict=feed_dict)
       print(res1.shape)
