@@ -1,4 +1,5 @@
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 import numpy as np
 import math
 import sys
@@ -125,9 +126,8 @@ def get_constra_loss(feat1, feat2, label, end_points):
   """ feat1: B*256,
       feat2: B*256,
       label: B, """
-  feat1 = tf.math.l2_normalize(feat1, axis=0, epsilon=1e-12, name=None, dim=None)
-  feat2 = tf.math.l2_normalize(feat2, axis=0, epsilon=1e-12, name=None, dim=None)
-  contrastive_loss = tf.contrib.losses.metric_learning.contrastive_loss(label, feat1, feat2, margin=1.0)
+  y_pred = tf.linalg.norm(feat1 - feat2, axis=1)
+  contrastive_loss = tf.contrib.losses.metric_learning.contrastive_loss(label, y_pred, margin=1.0)
   return contrastive_loss
 
 def get_constra_cross_loss(pred, feat1, feat2, label, end_points):
@@ -159,8 +159,8 @@ if __name__=='__main__':
       sess.run(tf.global_variables_initializer())
       feed_dict = {input_pl: input_feed, label_pl: label_feed}
       res1, res2 = sess.run([pos, ftr], feed_dict=feed_dict)
-      print res1.shape
-      print res1
+      print(res1.shape)
+      print(res1)
 
-      print res2.shape
-      print res2
+      print(res2.shape)
+      print(res2)

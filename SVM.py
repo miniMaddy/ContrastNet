@@ -1,7 +1,10 @@
 import numpy as np
 from numpy import array
+import matplotlib.pyplot as plt
 from sklearn.svm import SVC
 from sklearn.preprocessing import normalize
+from sklearn.metrics import ConfusionMatrixDisplay
+from sklearn.metrics import precision_recall_fscore_support
 
 num_votes = 12
 
@@ -67,6 +70,22 @@ for vote_id in range(num_votes):
 
     results.append(clf.score(X, y))
     print(clf.score(X, y))
+    titles_options = [
+        ("Confusion matrix, without normalization", None),
+    ]
+    for title in titles_options:
+        disp = ConfusionMatrixDisplay.from_estimator(
+            clf,
+            X,
+            y,
+        )
+        disp.ax_.set_title(title)
 
+        print(title)
+        print(disp.confusion_matrix)
+        plt.show()
+
+    y_pred = clf.predict(X)
+    print(precision_recall_fscore_support(y, y_pred))
 results = array(results)
 print('mean', np.mean(results))

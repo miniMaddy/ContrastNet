@@ -1,4 +1,5 @@
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 import numpy as np
 import math
 import sys
@@ -40,7 +41,7 @@ def get_model(point_cloud, is_training, bn_decay=None):
                        padding='VALID', stride=[1,1],
                        bn=True, is_training=is_training,
                        scope='dgcnn1', bn_decay=bn_decay)
-  net = tf.reduce_max(net, axis=-2, keep_dims=True)
+  net = tf.reduce_max(input_tensor=net, axis=-2, keepdims=True)
   net1 = net
 
   adj_matrix = tf_util.pairwise_distance(net)
@@ -51,7 +52,7 @@ def get_model(point_cloud, is_training, bn_decay=None):
                        padding='VALID', stride=[1,1],
                        bn=True, is_training=is_training,
                        scope='dgcnn2', bn_decay=bn_decay)
-  net = tf.reduce_max(net, axis=-2, keep_dims=True)
+  net = tf.reduce_max(input_tensor=net, axis=-2, keepdims=True)
   net2 = net
 
   adj_matrix = tf_util.pairwise_distance(net)
@@ -62,7 +63,7 @@ def get_model(point_cloud, is_training, bn_decay=None):
                        padding='VALID', stride=[1,1],
                        bn=True, is_training=is_training,
                        scope='dgcnn3', bn_decay=bn_decay)
-  net = tf.reduce_max(net, axis=-2, keep_dims=True)
+  net = tf.reduce_max(input_tensor=net, axis=-2, keepdims=True)
   net3 = net
 
   adj_matrix = tf_util.pairwise_distance(net)
@@ -73,7 +74,7 @@ def get_model(point_cloud, is_training, bn_decay=None):
                        padding='VALID', stride=[1,1],
                        bn=True, is_training=is_training,
                        scope='dgcnn4', bn_decay=bn_decay)
-  net = tf.reduce_max(net, axis=-2, keep_dims=True)
+  net = tf.reduce_max(input_tensor=net, axis=-2, keepdims=True)
   net4 = net
 
   net = tf_util.conv2d(tf.concat([net1, net2, net3, net4], axis=-1), 1024, [1, 1],
@@ -81,7 +82,7 @@ def get_model(point_cloud, is_training, bn_decay=None):
                        bn=True, is_training=is_training,
                        scope='agg', bn_decay=bn_decay)
 
-  net = tf.reduce_max(net, axis=1, keep_dims=True)
+  net = tf.reduce_max(input_tensor=net, axis=1, keepdims=True)
 
   # max_net = tf_util.max_pool2d(net, [num_point,1],
   #                            padding='VALID', scope='maxpool')
@@ -110,7 +111,7 @@ def get_loss(pred, label, end_points):
       label: B, """
   labels = tf.one_hot(indices=label, depth=300)
   loss = tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=pred, label_smoothing=0.2)
-  classify_loss = tf.reduce_mean(loss)
+  classify_loss = tf.reduce_mean(input_tensor=loss)
   return classify_loss
 
 
@@ -134,8 +135,8 @@ if __name__=='__main__':
       sess.run(tf.global_variables_initializer())
       feed_dict = {input_pl: input_feed, label_pl: label_feed}
       res1, res2 = sess.run([pos, ftr], feed_dict=feed_dict)
-      print res1.shape
-      print res1
+      print(res1.shape)
+      print(res1)
 
-      print res2.shape
-      print res2
+      print(res2.shape)
+      print(res2)

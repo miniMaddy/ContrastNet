@@ -58,19 +58,19 @@ def evaluate(num_votes):
     with tf.device('/gpu:'+str(GPU_INDEX)):
         pointclouds_pl_1, labels_pl = MODEL_CONTRAST.placeholder_inputs(BATCH_SIZE, NUM_POINT)
         pointclouds_pl_2, labels_pl = MODEL_CONTRAST.placeholder_inputs(BATCH_SIZE, NUM_POINT)
-        is_training_pl = tf.placeholder(tf.bool, shape=())
+        is_training_pl = tf.compat.v1.placeholder(tf.bool, shape=())
         # simple model
         pred, feature1, feature2, end_points = MODEL_CONTRAST.get_model(pointclouds_pl_1, pointclouds_pl_2, is_training_pl)
         loss = MODEL_CONTRAST.get_loss(pred, labels_pl, end_points)
         # Add ops to save and restore all the variables.
-        saver = tf.train.Saver()
+        saver = tf.compat.v1.train.Saver()
 
     # Create a session
-    config = tf.ConfigProto()
+    config = tf.compat.v1.ConfigProto()
     config.gpu_options.allow_growth = True
     config.allow_soft_placement = True
     config.log_device_placement = True
-    sess = tf.Session(config=config)
+    sess = tf.compat.v1.Session(config=config)
 
     # Restore variables from disk.
     saver.restore(sess, MODEL_PATH)
